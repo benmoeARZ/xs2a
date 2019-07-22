@@ -57,6 +57,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.LocalDate;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -79,6 +80,7 @@ public class AccountService {
     private final SpiToXs2aAccountReferenceMapper referenceMapper;
     private final SpiTransactionListToXs2aAccountReportMapper transactionsToAccountReportMapper;
     private final SpiToXs2aTransactionMapper spiToXs2aTransactionMapper;
+    private final SpiToXs2aDownloadTransactionsMapper spiToXs2aDownloadTransactionsMapper;
 
     private final ValueValidatorService validatorService;
     private final Xs2aAisConsentService aisConsentService;
@@ -94,6 +96,7 @@ public class AccountService {
     private final GetAccountDetailsValidator getAccountDetailsValidator;
     private final GetBalancesReportValidator getBalancesReportValidator;
     private final GetTransactionsReportValidator getTransactionsReportValidator;
+    private final DownloadTransactionsReportValidator downloadTransactionsReportValidator;
     private final GetTransactionDetailsValidator getTransactionDetailsValidator;
     private final RequestProviderService requestProviderService;
     private final SpiAspspConsentDataProviderFactory aspspConsentDataProviderFactory;
@@ -436,6 +439,10 @@ public class AccountService {
         transactionsReport.setAccountReference(referenceMapper.mapToXs2aAccountReference(requestedAccountReference));
         transactionsReport.setBalances(balanceMapper.mapToXs2aBalanceList(spiTransactionReport.getBalances()));
         transactionsReport.setResponseContentType(spiTransactionReport.getResponseContentType());
+        if (spiTransactionReport.getDownloadUrlSuffix() != null) {
+            String encodedDownloadUrlSuffix = Base64.getUrlEncoder().encodeToString(spiTransactionReport.getDownloadUrlSuffix().getBytes());
+            transactionsReport.setDownloadLinkSuffix(encodedDownloadUrlSuffix);
+        }
 
         ResponseObject<Xs2aTransactionsReport> response =
             ResponseObject.<Xs2aTransactionsReport>builder().body(transactionsReport).build();
@@ -443,8 +450,61 @@ public class AccountService {
         aisConsentService.consentActionLog(tppService.getTppId(), consentId,
                                            createActionStatus(withBalance, TypeAccess.TRANSACTION, response),
                                            requestUri, needsToUpdateUsage(accountConsent));
-
         return response;
+    }
+
+    public ResponseObject<Xs2aTransactionsDownloadResponse> downloadTransactions(String consentId, String downloadUrlSuffix) {
+        xs2aEventService.recordAisTppRequest(consentId, EventType.DOWNLOAD_TRANSACTION_LIST_REQUEST_RECEIVED);
+
+        Optional<AccountConsent> accountConsentOptional = aisConsentService.getAccountConsentById(consentId);
+        if (!accountConsentOptional.isPresent()) {
+            log.info("X-Request-ID: [{}], Consent-ID [{}], Download-Suffix [{}]. Download transactions failed. Account consent not found by id",
+                     requestProviderService.getRequestId(), consentId, downloadUrlSuffix);
+            return ResponseObject.<Xs2aTransactionsDownloadResponse>builder()
+                       .fail(AIS_400, of(CONSENT_UNKNOWN_400))
+                       .build();
+        }
+
+        AccountConsent accountConsent = accountConsentOptional.get();
+        ValidationResult validationResult = downloadTransactionsReportValidator.validate(
+            new DownloadTransactionListRequestObject(accountConsent));
+
+        if (validationResult.isNotValid()) {
+            log.info("X-Request-ID: [{}], Consent-ID [{}], Download-Suffix [{}]. Download transactions - validation failed: {}",
+                     requestProviderService.getRequestId(), consentId, downloadUrlSuffix, validationResult.getMessageError());
+            return ResponseObject.<Xs2aTransactionsDownloadResponse>builder()
+                       .fail(validationResult.getMessageError())
+                       .build();
+        }
+
+        String decodedDownloadUrlSuffix = new String(Base64.getUrlDecoder().decode(downloadUrlSuffix));
+        SpiContextData contextData = getSpiContextData(accountConsent.getPsuIdDataList());
+        SpiAspspConsentDataProvider aspspConsentDataProvider =
+            aspspConsentDataProviderFactory.getSpiAspspDataProviderFor(consentId);
+        SpiResponse<SpiTransactionsDownloadResponse> spiResponse = accountSpi.requestTransactionsByDownloadLink(contextData,
+                                                                                                                consentMapper.mapToSpiAccountConsent(accountConsent),
+                                                                                                                decodedDownloadUrlSuffix,
+                                                                                                                aspspConsentDataProvider);
+        if (spiResponse.hasError()) {
+            log.info("X-Request-ID: [{}], Consent-ID [{}], Download-Suffix [{}]. Download transactions failed: couldn't get download transactions stream by link.",
+                     requestProviderService.getRequestId(), consentId, downloadUrlSuffix);
+            return ResponseObject.<Xs2aTransactionsDownloadResponse>builder()
+                       .fail(new MessageError(spiErrorMapper.mapToErrorHolder(spiResponse, ServiceType.AIS)))
+                       .build();
+        }
+
+        if (spiResponse.getPayload() == null) {
+            log.info("X-Request-ID: [{}], Consent-ID [{}], Download-Suffix [{}]. Download transactions failed: spiResponse is empty.",
+                     requestProviderService.getRequestId(), consentId, downloadUrlSuffix);
+            return ResponseObject.<Xs2aTransactionsDownloadResponse>builder()
+                       .fail(ErrorType.AIS_404, of(RESOURCE_UNKNOWN_404))
+                       .build();
+        }
+
+        SpiTransactionsDownloadResponse spiPayload = spiResponse.getPayload();
+        return ResponseObject.<Xs2aTransactionsDownloadResponse>builder()
+                   .body(spiToXs2aDownloadTransactionsMapper.mapToXs2aTransactionsDownloadResponse(spiPayload))
+                   .build();
     }
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2018 adorsys GmbH & Co KG
+ * Copyright 2018-2019 adorsys GmbH & Co KG
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,24 +20,19 @@ import lombok.Value;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
+import java.io.Reader;
 
 /**
- * Transaction report of Spi layer to be used as a container for account reference, transactions and balances
+ * A class, containing a stream for downloading the list of transactions by a link, provided by ASPSP
  */
 @Value
-public class SpiTransactionReport {
-    public static final String RESPONSE_TYPE_JSON = "application/json";
-    public static final String RESPONSE_TYPE_XML = "application/xml";
-    public static final String RESPONSE_TYPE_TEXT = "text/plain";
-
-    private String downloadUrlSuffix;
-
-    private List<SpiTransaction> transactions;
-    @Nullable
-    private List<SpiAccountBalance> balances;
+public class SpiTransactionsDownloadResponse {
+    @NotNull
+    private Reader transactionStream;
     @NotNull
     private String responseContentType;
-
-    private byte[] transactionsRaw;
+    @NotNull
+    private String dataFileName;
+    @Nullable
+    private Integer dataSizeBytes;
 }

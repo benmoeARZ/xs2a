@@ -155,5 +155,10 @@ public abstract class AccountModelMapper {
 
     protected abstract ReportExchangeRate mapToReportExchangeRate(Xs2aExchangeRate xs2aExchangeRate);
 
+    public DownloadTransactionsListResponse200Json mapToDownloadTransactionsListResponse200Json(Xs2aTransactionsReportToDownload reportToDownload) {
+        DownloadTransactionsListResponse200Json transactionsListResponse = new DownloadTransactionsListResponse200Json();
+        transactionsListResponse.setOutputStream(reportToDownload.getOutputStream());
+        return transactionsListResponse;
+    }
 }
 

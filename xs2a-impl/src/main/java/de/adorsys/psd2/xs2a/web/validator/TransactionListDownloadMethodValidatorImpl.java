@@ -16,22 +16,22 @@
 
 package de.adorsys.psd2.xs2a.web.validator;
 
-import de.adorsys.psd2.xs2a.web.validator.body.BodyValidator;
-import de.adorsys.psd2.xs2a.web.validator.header.account.TransactionListHeaderValidator;
+import de.adorsys.psd2.xs2a.web.validator.body.piis.FundsConfirmationBodyValidator;
+import de.adorsys.psd2.xs2a.web.validator.header.FundsConfirmationHeaderValidator;
 import de.adorsys.psd2.xs2a.web.validator.path.PathParameterValidator;
-import de.adorsys.psd2.xs2a.web.validator.query.account.TransactionListQueryParamsValidator;
+import de.adorsys.psd2.xs2a.web.validator.query.QueryParameterValidator;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.List;
 
 @Component
-public class TransactionListMethodValidatorImpl extends AbstractMethodValidator<TransactionListHeaderValidator, BodyValidator, TransactionListQueryParamsValidator, PathParameterValidator> {
-    private static final String METHOD_NAME = "_getTransactionList";
+public class TransactionListDownloadMethodValidatorImpl extends AbstractMethodValidator<FundsConfirmationHeaderValidator, FundsConfirmationBodyValidator, QueryParameterValidator, PathParameterValidator> {
 
-    protected TransactionListMethodValidatorImpl(List<TransactionListHeaderValidator> headerValidators,
-                                                 List<TransactionListQueryParamsValidator> queryParamsValidator) {
-        super(headerValidators, Collections.emptyList(), queryParamsValidator, Collections.emptyList());
+    private static final String METHOD_NAME = "downloadTransactions";
+
+    public TransactionListDownloadMethodValidatorImpl(List<FundsConfirmationHeaderValidator> headerValidators, List<PathParameterValidator> pathParameterValidators) {
+        super(headerValidators, Collections.emptyList(), Collections.emptyList(), pathParameterValidators);
     }
 
     @Override

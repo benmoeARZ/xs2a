@@ -25,8 +25,8 @@ import de.adorsys.psd2.xs2a.domain.consent.Xs2aAccountAccess;
 import de.adorsys.psd2.xs2a.service.message.MessageService;
 import de.adorsys.psd2.xs2a.web.controller.AccountController;
 import de.adorsys.psd2.xs2a.web.link.AccountDetailsLinks;
-import de.adorsys.psd2.xs2a.web.link.TransactionsReportByPeriodHugeLinks;
-import de.adorsys.psd2.xs2a.web.link.TransactionsReportByPeriodLinks;
+import de.adorsys.psd2.xs2a.web.link.TransactionsReportDownloadLinks;
+import de.adorsys.psd2.xs2a.web.link.TransactionsReportAccountLinks;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.Aspect;
@@ -38,6 +38,7 @@ import java.util.List;
 @Aspect
 @Component
 public class AccountAspect extends AbstractLinkAspect<AccountController> {
+
     public AccountAspect(MessageService messageService, AspspProfileService aspspProfileService) {
         super(messageService, aspspProfileService);
     }
@@ -75,13 +76,9 @@ public class AccountAspect extends AbstractLinkAspect<AccountController> {
     public ResponseObject<Xs2aTransactionsReport> getTransactionsReportByPeriod(ResponseObject<Xs2aTransactionsReport> result, Xs2aTransactionsReportByPeriodRequest request) {
         if (!result.hasError()) {
             Xs2aTransactionsReport transactionsReport = result.getBody();
-
-            if (transactionsReport.isTransactionReportHuge()) {
-                transactionsReport.setLinks(new TransactionsReportByPeriodHugeLinks(getHttpUrl(), request.getAccountId(), request.isWithBalance()));
-            } else {
-                Xs2aAccountReport accountReport = transactionsReport.getAccountReport();
-                accountReport.setLinks(new TransactionsReportByPeriodLinks(getHttpUrl(), request.getAccountId(), request.isWithBalance()));
-            }
+            transactionsReport.setLinks(new TransactionsReportDownloadLinks(getHttpUrl(), request.getAccountId(), request.isWithBalance(), transactionsReport.getDownloadLinkSuffix()));
+            Xs2aAccountReport accountReport = transactionsReport.getAccountReport();
+            accountReport.setLinks(new TransactionsReportAccountLinks(getHttpUrl(), request.getAccountId(), request.isWithBalance()));
 
             return result;
         }
@@ -95,5 +92,4 @@ public class AccountAspect extends AbstractLinkAspect<AccountController> {
         }
         return enrichErrorTextMessage(result);
     }
-
 }

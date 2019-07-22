@@ -27,18 +27,32 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
+import java.io.Reader;
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Currency;
-import java.util.List;
+import java.util.*;
+
+import static de.adorsys.psd2.xs2a.spi.domain.account.SpiTransactionReport.RESPONSE_TYPE_JSON;
 
 @Slf4j
 @Service
 public class AccountSpiMockImpl implements AccountSpi {
+    private static final String TEST_TRANSACTION_DATA = "{\n" +
+                                                            "  \"consentId\": \"some consent id\",\n" +
+                                                            "  \"accountId\": \"some account id\",\n" +
+                                                            "  \"acceptHeader\": \"application/json\",\n" +
+                                                            "  \"withBalance\": true,\n" +
+                                                            "  \"dateFrom\": \"2018-01-01\",\n" +
+                                                            "  \"dateTo\": \"2019-06-11\",\n" +
+                                                            "  \"bookingStatus\": \"booked\",\n" +
+                                                            "  \"requestUri\": \"/v1/accounts\",\n" +
+                                                            "  \"entryReferenceFrom\": \"777\",\n" +
+                                                            "  \"deltaList\": false\n" +
+                                                            "}\n";
+
     @Override
     public SpiResponse<List<SpiAccountDetails>> requestAccountList(@NotNull SpiContextData contextData, boolean withBalance, @NotNull SpiAccountConsent accountConsent, @NotNull SpiAspspConsentDataProvider aspspConsentDataProvider) {
         log.info("AccountSpi#requestAccountList: contextData {}, withBalance {}, accountConsent-id {}, aspspConsentData {}", contextData, withBalance, accountConsent.getId(), aspspConsentDataProvider.loadAspspConsentData());
@@ -71,7 +85,7 @@ public class AccountSpiMockImpl implements AccountSpi {
 
 
         return SpiResponse.<SpiTransactionReport>builder()
-                   .payload(new SpiTransactionReport(buildSpiTransactionList(), Collections.singletonList(buildSpiAccountBalance()), "application/json", null))
+                   .payload(new SpiTransactionReport("dGVzdA==", buildSpiTransactionList(), Collections.singletonList(buildSpiAccountBalance()), "application/json", null))
                    .build();
     }
 
@@ -91,6 +105,20 @@ public class AccountSpiMockImpl implements AccountSpi {
         return SpiResponse.<List<SpiAccountBalance>>builder()
                    .payload(Collections.singletonList(buildSpiAccountBalance()))
                    .build();
+    }
+
+    @Override
+    public SpiResponse<SpiTransactionsDownloadResponse> requestTransactionsByDownloadLink(@NotNull SpiContextData contextData, @NotNull SpiAccountConsent accountConsent, @NotNull String downloadUrlSuffix, @NotNull SpiAspspConsentDataProvider aspspConsentDataProvider) {
+        log.info("AccountSpi#requestTransactionsByDownloadLink: contextData {}, accountConsent-id {}, downloadUrlSuffix {}, aspspConsentData {}", contextData, accountConsent.getId(), downloadUrlSuffix, aspspConsentDataProvider.loadAspspConsentData());
+        Reader reader = new StringReader(TEST_TRANSACTION_DATA);
+        SpiTransactionsDownloadResponse response = new SpiTransactionsDownloadResponse(reader,
+                                                                                       RESPONSE_TYPE_JSON,
+                                                                                       "transactions_" + new Date().getTime(),
+                                                                                       TEST_TRANSACTION_DATA.getBytes().length);
+        return SpiResponse.<SpiTransactionsDownloadResponse>builder()
+                   .payload(response)
+                   .build();
+
     }
 
     private SpiAccountBalance buildSpiAccountBalance() {
