@@ -419,26 +419,28 @@ public class PisCommonPaymentServiceInternal implements PisCommonPaymentService 
      * @return PisAuthorization
      */
     private PisAuthorization saveNewAuthorisation(PisCommonPaymentData paymentData, CreatePisAuthorisationRequest request) {
-        PisAuthorization consentAuthorisation = new PisAuthorization();
+        PisAuthorization pisAuthorization = new PisAuthorization();
         Optional<PsuData> psuDataOptional = cmsPsuService.definePsuDataForAuthorisation(psuDataMapper.mapToPsuData(request.getPsuData()), paymentData.getPsuDataList());
 
         ScaStatus scaStatus = ScaStatus.RECEIVED;
 
         if (psuDataOptional.isPresent()) {
             PsuData psuData = psuDataOptional.get();
-            paymentData.setPsuDataList(cmsPsuService.enrichPsuData(psuData, paymentData.getPsuDataList()));
-            consentAuthorisation.setPsuData(psuData);
+            if (CmsAuthorisationType.CANCELLED != request.getAuthorizationType()){
+                paymentData.setPsuDataList(cmsPsuService.enrichPsuData(psuData, paymentData.getPsuDataList()));
+            }
+            pisAuthorization.setPsuData(psuData);
             scaStatus = ScaStatus.PSUIDENTIFIED;
         }
 
-        consentAuthorisation.setExternalId(UUID.randomUUID().toString());
-        consentAuthorisation.setScaStatus(scaStatus);
-        consentAuthorisation.setAuthorizationType(request.getAuthorizationType());
-        consentAuthorisation.setRedirectUrlExpirationTimestamp(countRedirectUrlExpirationTimestampForAuthorisationType(request.getAuthorizationType()));
-        consentAuthorisation.setScaApproach(request.getScaApproach());
-        consentAuthorisation.setPaymentData(paymentData);
+        pisAuthorization.setExternalId(UUID.randomUUID().toString());
+        pisAuthorization.setScaStatus(scaStatus);
+        pisAuthorization.setAuthorizationType(request.getAuthorizationType());
+        pisAuthorization.setRedirectUrlExpirationTimestamp(countRedirectUrlExpirationTimestampForAuthorisationType(request.getAuthorizationType()));
+        pisAuthorization.setScaApproach(request.getScaApproach());
+        pisAuthorization.setPaymentData(paymentData);
 
-        return pisAuthorisationRepository.save(consentAuthorisation);
+        return pisAuthorisationRepository.save(pisAuthorization);
     }
 
     private OffsetDateTime countRedirectUrlExpirationTimestampForAuthorisationType(CmsAuthorisationType authorisationType) {
