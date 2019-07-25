@@ -478,7 +478,7 @@ public class AccountService {
         }
 
         String decodedDownloadUrlSuffix = new String(Base64.getUrlDecoder().decode(downloadUrlSuffix));
-        SpiContextData contextData = getSpiContextData(accountConsent.getPsuIdDataList());
+        SpiContextData contextData = getSpiContextData();
         SpiAspspConsentDataProvider aspspConsentDataProvider =
             aspspConsentDataProviderFactory.getSpiAspspDataProviderFor(consentId);
         SpiResponse<SpiTransactionsDownloadResponse> spiResponse = accountSpi.requestTransactionsByDownloadLink(contextData,
