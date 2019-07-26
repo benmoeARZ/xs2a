@@ -23,7 +23,7 @@ import java.io.Reader;
 @Data
 public class Xs2aTransactionsDownloadResponse {
     private Reader transactionStream;
-    private String responseContentType;
+    private String contentType;
     private Integer dataSizeBytes;
     private String dataFileName;
 }

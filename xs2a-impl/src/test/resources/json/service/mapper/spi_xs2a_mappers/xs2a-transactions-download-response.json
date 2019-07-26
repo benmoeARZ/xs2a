@@ -1,5 +1,5 @@
 {
-  "responseContentType": "application/json",
+  "contentType": "application/json",
   "dataSizeBytes": 1000,
   "dataFileName": "transactions.json"
 }

@@ -19,14 +19,13 @@ package de.adorsys.psd2.xs2a.web.aspect;
 import de.adorsys.psd2.aspsp.profile.domain.AspspSettings;
 import de.adorsys.psd2.aspsp.profile.service.AspspProfileService;
 import de.adorsys.psd2.xs2a.domain.ResponseObject;
-import de.adorsys.psd2.xs2a.domain.account.Xs2aAccountDetails;
-import de.adorsys.psd2.xs2a.domain.account.Xs2aAccountDetailsHolder;
-import de.adorsys.psd2.xs2a.domain.account.Xs2aAccountListHolder;
-import de.adorsys.psd2.xs2a.domain.consent.AccountConsent;
+import de.adorsys.psd2.xs2a.domain.Transactions;
+import de.adorsys.psd2.xs2a.domain.account.Xs2aAccountReport;
+import de.adorsys.psd2.xs2a.domain.account.Xs2aTransactionsReport;
+import de.adorsys.psd2.xs2a.domain.account.Xs2aTransactionsReportByPeriodRequest;
 import de.adorsys.psd2.xs2a.domain.consent.Xs2aCreatePisCancellationAuthorisationResponse;
 import de.adorsys.psd2.xs2a.service.message.MessageService;
 import de.adorsys.psd2.xs2a.util.reader.JsonReader;
-import de.adorsys.psd2.xs2a.web.link.AccountDetailsLinks;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -39,91 +38,91 @@ import static de.adorsys.psd2.xs2a.core.error.MessageErrorCode.CONSENT_UNKNOWN_4
 import static de.adorsys.psd2.xs2a.domain.TppMessageInformation.of;
 import static de.adorsys.psd2.xs2a.service.mapper.psd2.ErrorType.AIS_400;
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
-public class AccountAspectTest {
+public class TransactionAspectTest {
 
     private static final String CONSENT_ID = "some consent id";
     private static final String ACCOUNT_ID = "some account id";
+    private static final String RESOURCE_ID = "some resource id";
     private static final String REQUEST_URI = "/v1/accounts";
     private static final String ERROR_TEXT = "Error occurred while processing";
+    private Xs2aTransactionsReportByPeriodRequest xs2aTransactionsReportByPeriodRequest;
 
     @Mock
     private AspspProfileService aspspProfileService;
     @Mock
     private MessageService messageService;
+    @Mock
+    private Xs2aTransactionsReport transactionsReport;
 
-    private Xs2aAccountDetails accountDetails;
-    private AccountConsent accountConsent;
     private AspspSettings aspspSettings;
     private ResponseObject responseObject;
     private JsonReader jsonReader = new JsonReader();
-    private AccountAspect aspect;
+    private TransactionAspect aspect;
 
     @Before
     public void setUp() {
-        aspect = new AccountAspect(messageService, aspspProfileService);
+        aspect = new TransactionAspect(messageService, aspspProfileService);
         aspspSettings = jsonReader.getObjectFromFile("json/aspect/aspsp-settings.json", AspspSettings.class);
-        accountConsent = jsonReader.getObjectFromFile("json/aspect/account_consent.json", AccountConsent.class);
-        accountDetails = jsonReader.getObjectFromFile("json/aspect/account_details.json", Xs2aAccountDetails.class);
     }
 
     @Test
-    public void getAccountDetailsAspect_success() {
+    public void getTransactionsReportByPeriod_successReport() {
+        xs2aTransactionsReportByPeriodRequest = jsonReader.getObjectFromFile("json/Xs2aTransactionsReportByPeriodRequest.json", Xs2aTransactionsReportByPeriodRequest.class);
+
         when(aspspProfileService.getAspspSettings()).thenReturn(aspspSettings);
+        when(transactionsReport.getAccountReport()).thenReturn(new Xs2aAccountReport(Collections.emptyList(), Collections.emptyList(), null));
 
-        responseObject = ResponseObject.<Xs2aAccountDetailsHolder>builder()
-                             .body(new Xs2aAccountDetailsHolder(accountDetails, accountConsent))
+        responseObject = ResponseObject.<Xs2aTransactionsReport>builder()
+                             .body(transactionsReport)
                              .build();
-        ResponseObject actualResponse = aspect.getAccountDetailsAspect(responseObject, CONSENT_ID, ACCOUNT_ID, true, REQUEST_URI);
-
-        verify(aspspProfileService, times(1)).getAspspSettings();
-        assertNotNull(accountDetails.getLinks());
-        assertTrue(accountDetails.getLinks() instanceof AccountDetailsLinks);
+        ResponseObject actualResponse = aspect.getTransactionsReportByPeriod(responseObject, xs2aTransactionsReportByPeriodRequest);
 
         assertFalse(actualResponse.hasError());
     }
 
     @Test
-    public void getAccountDetailsAspect_withError_shouldAddTextErrorMessage() {
+    public void getTransactionsReportByPeriod_withError_shouldAddTextErrorMessage() {
+        xs2aTransactionsReportByPeriodRequest = jsonReader.getObjectFromFile("json/Xs2aTransactionsReportByPeriodRequest.json", Xs2aTransactionsReportByPeriodRequest.class);
         when(messageService.getMessage(any())).thenReturn(ERROR_TEXT);
 
         responseObject = ResponseObject.<Xs2aCreatePisCancellationAuthorisationResponse>builder()
                              .fail(AIS_400, of(CONSENT_UNKNOWN_400))
                              .build();
-        ResponseObject actualResponse = aspect.getAccountDetailsAspect(responseObject, CONSENT_ID, ACCOUNT_ID, true, REQUEST_URI);
+
+
+        ResponseObject actualResponse = aspect.getTransactionsReportByPeriod(responseObject, xs2aTransactionsReportByPeriodRequest);
 
         assertTrue(actualResponse.hasError());
         assertEquals(ERROR_TEXT, actualResponse.getError().getTppMessage().getText());
     }
 
     @Test
-    public void getAccountDetailsListAspect_success() {
-        when(aspspProfileService.getAspspSettings()).thenReturn(aspspSettings);
-
-        responseObject = ResponseObject.<Xs2aAccountListHolder>builder()
-                             .body(new Xs2aAccountListHolder(Collections.singletonList(accountDetails), accountConsent))
+    public void getTransactionDetailsAspect_successNotHugeReport() {
+        responseObject = ResponseObject.<Transactions>builder()
+                             .body(new Transactions())
                              .build();
-        ResponseObject actualResponse = aspect.getAccountDetailsListAspect(responseObject, CONSENT_ID, true, REQUEST_URI);
-
-        verify(aspspProfileService, times(1)).getAspspSettings();
-        assertNotNull(accountDetails.getLinks());
-        assertTrue(accountDetails.getLinks() instanceof AccountDetailsLinks);
+        ResponseObject actualResponse = aspect.getTransactionDetailsAspect(responseObject, CONSENT_ID, ACCOUNT_ID,
+                                                                           RESOURCE_ID, REQUEST_URI);
 
         assertFalse(actualResponse.hasError());
+        assertEquals(responseObject, actualResponse);
     }
 
     @Test
-    public void getAccountDetailsListAspect_withError_shouldAddTextErrorMessage() {
+    public void getTransactionDetailsAspect_withError_shouldAddTextErrorMessage() {
         when(messageService.getMessage(any())).thenReturn(ERROR_TEXT);
 
         responseObject = ResponseObject.<Xs2aCreatePisCancellationAuthorisationResponse>builder()
                              .fail(AIS_400, of(CONSENT_UNKNOWN_400))
                              .build();
-        ResponseObject actualResponse = aspect.getAccountDetailsListAspect(responseObject, CONSENT_ID, true, REQUEST_URI);
+        ResponseObject actualResponse = aspect.getTransactionDetailsAspect(responseObject, CONSENT_ID, ACCOUNT_ID, RESOURCE_ID, REQUEST_URI);
 
         assertTrue(actualResponse.hasError());
         assertEquals(ERROR_TEXT, actualResponse.getError().getTppMessage().getText());
     }
+
 }

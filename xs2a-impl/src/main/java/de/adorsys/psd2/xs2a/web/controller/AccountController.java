@@ -24,6 +24,7 @@ import de.adorsys.psd2.xs2a.domain.Transactions;
 import de.adorsys.psd2.xs2a.domain.account.*;
 import de.adorsys.psd2.xs2a.exception.MessageError;
 import de.adorsys.psd2.xs2a.service.AccountService;
+import de.adorsys.psd2.xs2a.service.TransactionService;
 import de.adorsys.psd2.xs2a.service.mapper.AccountModelMapper;
 import de.adorsys.psd2.xs2a.service.mapper.ResponseMapper;
 import de.adorsys.psd2.xs2a.service.mapper.psd2.ResponseErrorMapper;
@@ -59,6 +60,7 @@ public class AccountController implements AccountApi {
     private final HttpServletRequest request;
     private final HttpServletResponse response;
     private final AccountService accountService;
+    private final TransactionService transactionService;
     private final ResponseMapper responseMapper;
     private final AccountModelMapper accountModelMapper;
     private final ResponseErrorMapper responseErrorMapper;
@@ -90,7 +92,7 @@ public class AccountController implements AccountApi {
     @Override
     public ResponseEntity getTransactionList(String accountId, String bookingStatus, UUID xRequestID, String consentID, LocalDate dateFrom, LocalDate dateTo, String entryReferenceFrom, Boolean deltaList, Boolean withBalance, String digest, String signature, byte[] tpPSignatureCertificate, String psUIPAddress, String psUIPPort, String psUAccept, String psUAcceptCharset, String psUAcceptEncoding, String psUAcceptLanguage, String psUUserAgent, String psUHttpMethod, UUID psUDeviceID, String psUGeoLocation) {
         Xs2aTransactionsReportByPeriodRequest xs2aTransactionsReportByPeriodRequest = new Xs2aTransactionsReportByPeriodRequest(consentID, accountId, request.getHeader("accept"), BooleanUtils.isTrue(withBalance), dateFrom, dateTo, BookingStatus.forValue(bookingStatus), trimEndingSlash(request.getRequestURI()), entryReferenceFrom, deltaList);
-        ResponseObject<Xs2aTransactionsReport> transactionsReport = accountService.getTransactionsReportByPeriod(xs2aTransactionsReportByPeriodRequest);
+        ResponseObject<Xs2aTransactionsReport> transactionsReport = transactionService.getTransactionsReportByPeriod(xs2aTransactionsReportByPeriodRequest);
 
         if (transactionsReport.hasError()) {
             return responseErrorMapper.generateErrorResponse(transactionsReport.getError());
@@ -105,7 +107,7 @@ public class AccountController implements AccountApi {
     public void downloadTransactions(@RequestHeader(value = "X-Request-ID") UUID xRequestID,
                                      @RequestHeader(value = "Consent-ID") String consentID,
                                      @PathVariable("download-url-suffix") String downloadUrlSuffix) {
-        ResponseObject<Xs2aTransactionsDownloadResponse> downloadTransactionsResponse = accountService.downloadTransactions(consentID, downloadUrlSuffix);
+        ResponseObject<Xs2aTransactionsDownloadResponse> downloadTransactionsResponse = transactionService.downloadTransactions(consentID, downloadUrlSuffix);
 
         try {
             if (downloadTransactionsResponse.hasError()) {
@@ -119,7 +121,7 @@ public class AccountController implements AccountApi {
 
             Xs2aTransactionsDownloadResponse responseBody = downloadTransactionsResponse.getBody();
             Reader transactions = responseBody.getTransactionStream();
-            String responseContentType = responseBody.getResponseContentType();
+            String responseContentType = responseBody.getContentType();
             Integer dataSizeBytes = responseBody.getDataSizeBytes();
             String dataFileName = responseBody.getDataFileName();
 
@@ -140,7 +142,7 @@ public class AccountController implements AccountApi {
 
     @Override
     public ResponseEntity getTransactionDetails(String accountId, String resourceId, UUID xRequestID, String consentID, String digest, String signature, byte[] tpPSignatureCertificate, String psUIPAddress, String psUIPPort, String psUAccept, String psUAcceptCharset, String psUAcceptEncoding, String psUAcceptLanguage, String psUUserAgent, String psUHttpMethod, UUID psUDeviceID, String psUGeoLocation) {
-        ResponseObject<Transactions> transactionDetails = accountService.getTransactionDetails(consentID, accountId, resourceId, trimEndingSlash(request.getRequestURI()));
+        ResponseObject<Transactions> transactionDetails = transactionService.getTransactionDetails(consentID, accountId, resourceId, trimEndingSlash(request.getRequestURI()));
         return transactionDetails.hasError()
                    ? responseErrorMapper.generateErrorResponse(transactionDetails.getError())
                    : responseMapper.ok(transactionDetails, accountModelMapper::mapToTransactionDetails);
